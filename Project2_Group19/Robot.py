@@ -54,6 +54,7 @@ if serverIn != str(0):
 
 robotId = raw_input("Robot Id: ")
 robotPassword = raw_input("Password: ")
+print("Please wait till you are logged in, this can take a while due to encryption")
 
 currentRoom = 0;
 cleaning = False;
@@ -128,7 +129,7 @@ while(True):
                     print("Staying in this room") # This is an error message and should never be displayed
                     # if this is reached, something is wrong
             except ConnectionResetError:
-                print('Humorous Server Error Message that no player thinks is funny')
+                print('Humorous Server Error Message that no ond thinks is funny')
                 active = False
                 clientSocket.close()
     else:
