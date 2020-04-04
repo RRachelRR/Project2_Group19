@@ -6,9 +6,8 @@
 
 Go to the link below and download the MySQL Community Server: 
 
-```shell
 <https://dev.mysql.com/downloads/mysql/>
-```
+
 
 For macOS download the version titled:
 ```shell
@@ -23,9 +22,8 @@ Windows (x86, 64-bit), ZIP Archive
 
 Download the SQLWorkbench from the following link:
 
-```shell
 <https://www.mysql.com/products/workbench/>
-```
+
 
 Click the "Download Now" button, then navigate to the botton of the page. Select your operating system and click download.
 
@@ -82,22 +80,5 @@ mydb = mysql.connector.connect(
     database = "robo_db"
 )
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
