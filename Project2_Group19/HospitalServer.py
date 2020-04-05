@@ -120,7 +120,7 @@ def listenToServer(sock):
             return
 
         input2 = json.loads(input)
-        if int(input2[0]) == 3:  # checks if player is online on this server
+        if int(input2[0]) == 3:  # checks if robot is online on this server
             if input2[1] in robotsOnline:
                 answe = str(0)
             else:
@@ -144,7 +144,7 @@ def listenToStaff(sock):
 
 
     try:
-        # Get public RSA Key from player
+        # Get public RSA Key from staff
         clientExportedPublicRSAKey = sock.recv(2048)  # Key as in a file/string
         clientPublicRSAKey = RSA.import_key(clientExportedPublicRSAKey)  # Key as object
         cipherObjectRSA = PKCS1_OAEP.new(clientPublicRSAKey)  # Object to encrypt and decrypt with key
@@ -153,7 +153,7 @@ def listenToStaff(sock):
         sessionAESKey = get_random_bytes(16)
         sessionAESIv = get_random_bytes(16)
 
-        # Send AES session key and IV to player
+        # Send AES session key and IV to staff
         cipheredSessionAESKey = cipherObjectRSA.encrypt(sessionAESKey)  # encrypted AES session key
         cipheredSessionAESIv = cipherObjectRSA.encrypt(sessionAESIv)  # encrypted AES IV
         sock.send(cipheredSessionAESKey)
@@ -171,7 +171,7 @@ def listenToStaff(sock):
                     sock.send(mes.encode())
                     return
                 mes = staffPasswords[staffName]
-                staffSalt = encryptAES(mes[0], sessionAESKey, sessionAESIv)  # encrypt salt for that robot
+                staffSalt = encryptAES(mes[0], sessionAESKey, sessionAESIv)  # encrypt salt for that staff
                 sock.send(staffSalt)  # send salt
             elif int(input[0]) == 1:  # receiving login password
                 staffInfo = input[1]
@@ -182,17 +182,17 @@ def listenToStaff(sock):
                 if len(servers) != 0:
                     check = loginCheck(servers, 12002, mes)  # check if staffmember is already online somewhere
                 else:
-                    check = 1  # if there is only one server the player can't be online on another one
-                if staffName in staffOnline:  # player is already online on this server
+                    check = 1  # if there is only one server the staff can't be online on another one
+                if staffName in staffOnline:  # staff is already online on this server
                     print('Staffmember is already online on this server')
                     answ = 2
-                elif int(check) == 0:  # player is already online on another server
+                elif int(check) == 0:  # staff is already online on another server
                     print('Staffmember is already online on another server')
                     answ = 4
-                elif not staffName in staffPasswords:  # player doesn't exist
+                elif not staffName in staffPasswords:  # staff doesn't exist
                     print('Staffmember does not exist')
                     answ = 3
-                elif staffPassword.encode() == staffPasswords[staffName][1]:  # Player is allowed to log in
+                elif staffPassword.encode() == staffPasswords[staffName][1]:  # Staff is allowed to log in
                     staffOnline[staffName] = 0
                     print(staffName + " has logged in")
                     answ = 1
@@ -211,12 +211,12 @@ def listenToStaff(sock):
                 print("Added room " + str(addRoom))
                 sock.send(json.dumps([str(21)]).encode())
                 staffOnline.pop(staffName)
-    except ConnectionResetError:  # when player closes program, they log out
+    except ConnectionResetError:  # when staff closes program, they log out
         print(staffName + " has closed connection")
-        robotsOnline.pop(staffName)  # remove player from online list
+        robotsOnline.pop(staffName)  # remove staff from online list
         return
 
-# handles messages coming in from another player
+# handles messages coming in from another robot
 def listenToRobot(sock):
     robotId = ""
     sessionAESKey = ""  # symmetric encryption key
@@ -224,7 +224,7 @@ def listenToRobot(sock):
 
 
     try:
-        # Get public RSA Key from player
+        # Get public RSA Key from robot
         clientExportedPublicRSAKey = sock.recv(2048)  # Key as in a file/string
         clientPublicRSAKey = RSA.import_key(clientExportedPublicRSAKey)  # Key as object
         cipherObjectRSA = PKCS1_OAEP.new(clientPublicRSAKey)  # Object to encrypt and decrypt with key
@@ -233,7 +233,7 @@ def listenToRobot(sock):
         sessionAESKey = get_random_bytes(16)
         sessionAESIv = get_random_bytes(16)
 
-        # Send AES session key and IV to player
+        # Send AES session key and IV to robot
         cipheredSessionAESKey = cipherObjectRSA.encrypt(sessionAESKey)  # encrypted AES session key
         cipheredSessionAESIv = cipherObjectRSA.encrypt(sessionAESIv)  # encrypted AES IV
         sock.send(cipheredSessionAESKey)
@@ -260,7 +260,7 @@ def listenToRobot(sock):
                 robotPassword = decryptAES(encryptedRobotPassword.encode(), sessionAESKey, sessionAESIv)  # decrypt hashed password
                 mes = json.dumps([str(3), robotId])
                 if len(servers) != 0:
-                    check = loginCheck(servers, 12002, mes)  # check if player is already online somewhere
+                    check = loginCheck(servers, 12002, mes)  # check if robot is already online somewhere
                 else:
                     check = 1  # if there is only one server the robot can't be online on another one
                 if robotId in robotsOnline:  # robot is already online on this server
@@ -319,11 +319,11 @@ def listenToRobot(sock):
                 print(str(len(robotsOnline)) + " Robots are left")
     except ConnectionResetError:  # when robot closes program, they log out
         print(robotId + " has closed connection")
-        robotsOnline.pop(robotId)  # remove player from online list
+        robotsOnline.pop(robotId)  # remove robot from online list
         return
 
 
-# creates a new thread to handle incoming player messages
+# creates a new thread to handle incoming robot messages
 def listenNewConnection(sock):
     while True:
         connectionSocket, addr = sock.accept()

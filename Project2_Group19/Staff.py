@@ -103,10 +103,10 @@ if loginSuccessful:
             else:
                 print('Wrong name or password')
         except ConnectionResetError:
-            print('Humorous Server Connection Error Message that no player thinks is funny')
+            print('Humorous Server Connection Error Message that nobody thinks is funny')
             active = False
         except ConnectionRefusedError:
-            print('Humorous Server Offline Message that no player thinks is funny')
+            print('Humorous Server Offline Message that nobody thinks is funny')
             active = False
 if active:
     room = raw_input("Room that needs cleaning: ")

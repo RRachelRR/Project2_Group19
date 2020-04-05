@@ -109,10 +109,10 @@ while(True):
                     else:
                         print('Wrong id or password')
                 except ConnectionResetError:
-                    print('Humorous Server Connection Error Message that no player thinks is funny')
+                    print('Humorous Server Connection Error Message that nobody thinks is funny')
                     active = False
                 except ConnectionRefusedError:
-                    print('Humorous Server Offline Message that no player thinks is funny')
+                    print('Humorous Server Offline Message that nobody thinks is funny')
                     active = False
             message1 = json.dumps([2, [robotId, currentRoom]])
             try:
