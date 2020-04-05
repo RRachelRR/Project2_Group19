@@ -80,7 +80,7 @@ if loginSuccessful:
     message = json.dumps([str(0), staffName])
     clientSocket.send(message.encode())
     incom = clientSocket.recv(1024)
-    if incom.decode() == 'RobotId does not exist':
+    if incom.decode() == 'Username does not exist':
         print(incom.decode())
         active = False
     else:
@@ -91,6 +91,7 @@ if loginSuccessful:
             message = json.dumps([str(1), [staffName, encryptedHash.decode()]])
             clientSocket.send(message.encode())
             login = json.loads(clientSocket.recv(1024).decode())
+            
             if int(login[0]) == 1:
                 print('Welcome to the Hospital System')
                 active = True
@@ -108,6 +109,9 @@ if loginSuccessful:
         except ConnectionRefusedError:
             print('Humorous Server Offline Message that no player thinks is funny')
             active = False
+
+
+
 if active:
     room = raw_input("Room that needs cleaning: ")
     message1 = json.dumps([2, room])
