@@ -1,14 +1,26 @@
 import base64
 import time
-from socket import*
+from socket import *
 from Crypto.PublicKey import RSA
-from Crypto.Cipher import AES,PKCS1_OAEP
+from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.Random import get_random_bytes
 import json
 import threading
 from threading import Lock
 from threading import Condition
 from pip._vendor.distlib.compat import raw_input
+import mysql.connector
+
+# Login to database
+mydb = mysql.connector.connect(
+    host="localhost",
+    user="root",
+    passwd="password123",
+    database="testdb"
+)
+
+mycursor = mydb.cursor()
+print("Server successfully connected to database")
 
 # Thread that handles robots
 class RobotThread(threading.Thread):
@@ -21,6 +33,7 @@ class RobotThread(threading.Thread):
         print("Starting Robot Thread " + self.name)
         self.funcpoint(self.args)
 
+
 # Thread that handles staff
 class StaffThread(threading.Thread):
     def __init__(self, funcpoint, args):
@@ -31,6 +44,7 @@ class StaffThread(threading.Thread):
     def run(self):
         print("Starting Staff Thread " + self.name)
         self.funcpoint(self.args)
+
 
 # Thread that handles servers
 class ServerThread(threading.Thread):
@@ -46,6 +60,7 @@ class ServerThread(threading.Thread):
 
 # AES parameter
 modeAES = AES.MODE_CFB  # Cipher Mode
+
 
 # Encrypt and decode are not exactly taken from this link, but were inspired by this code
 # https://stackoverflow.com/questions/14179784/python-encrypting-with-pycrypto-aes
@@ -80,6 +95,7 @@ def openSock():
     print('Server is ready to receive')
     return serverSocket
 
+
 # opens socket to communicate with other servers on socket 12000
 def openStaffSock():
     serverPort = 12001
@@ -88,6 +104,7 @@ def openStaffSock():
     serverSocket.listen(5)
     print('Server is ready to receive')
     return serverSocket
+
 
 # opens socket to communicate with other servers on socket 12002
 def openServerSock():
@@ -136,12 +153,12 @@ def listenToNewStaff(sock):
         thread = StaffThread(listenToStaff, staffConnectionSocket)
         thread.start()
 
-#handles messages coming in from staff
+
+# handles messages coming in from staff
 def listenToStaff(sock):
     staffName = ""
     sessionAESKey = ""  # symmetric encryption key
     sessionAESIv = ""  # initial value for randomness
-
 
     try:
         # Get public RSA Key from staff
@@ -161,24 +178,48 @@ def listenToStaff(sock):
 
         while True:
             input1 = sock.recv(1024).decode()
-            if not input1:   # sometimes after a connection closes empty messages come through
+            if not input1:  # sometimes after a connection closes empty messages come through
                 break
             input = json.loads(input1)
             if int(input[0]) == 0:  # receiving staff username
                 staffName = input[1]
-                if staffName not in staffPasswords:
+
+                sql_query = "SELECT EXISTS(SELECT * FROM staff_tb WHERE name = %s)" # check if staff exists in db
+                mycursor.execute(sql_query, (staffName,))
+                query_result = mycursor.fetchone()   # either 1 or 0 
+                
+                if query_result[0] == 0:    
                     mes = 'Username does not exist'
                     sock.send(mes.encode())
                     return
-                mes = staffPasswords[staffName]
-                staffSalt = encryptAES(mes[0], sessionAESKey, sessionAESIv)  # encrypt salt for that staff
+             
+                sql_query = "SELECT salt FROM staff_tb WHERE name = %s" # get salt from database
+                mycursor.execute(sql_query, (staffName,))
+                query_result = mycursor.fetchone()
+
+                staffSalt = encryptAES(query_result[0], sessionAESKey, sessionAESIv)  # encrypt salt for that robot
                 sock.send(staffSalt)  # send salt
+
+
             elif int(input[0]) == 1:  # receiving login password
                 staffInfo = input[1]
                 staffName = staffInfo[0]
                 encryptedStaffPassword = staffInfo[1]
-                staffPassword = decryptAES(encryptedStaffPassword.encode(), sessionAESKey, sessionAESIv)  # decrypt hashed password
+                staffPassword = decryptAES(encryptedStaffPassword.encode(), sessionAESKey,
+                                           sessionAESIv)  # decrypt hashed password
                 mes = json.dumps([str(3), staffName])
+
+                # check if staff name in database
+                sql_query = "SELECT EXISTS(SELECT * FROM staff_tb WHERE name = %s)"
+                mycursor.execute(sql_query, (staffName,))
+                query_name = mycursor.fetchone()   
+
+                # fetch password from database
+                sql_query = "SELECT hash_pword FROM staff_tb WHERE name = %s" 
+                mycursor.execute(sql_query, (staffName,))
+                query_passwd = mycursor.fetchone()
+                
+
                 if len(servers) != 0:
                     check = loginCheck(servers, 12002, mes)  # check if staffmember is already online somewhere
                 else:
@@ -189,10 +230,10 @@ def listenToStaff(sock):
                 elif int(check) == 0:  # staff is already online on another server
                     print('Staffmember is already online on another server')
                     answ = 4
-                elif not staffName in staffPasswords:  # staff doesn't exist
+                elif query_name[0] == 0:  # player doesn't exist
                     print('Staffmember does not exist')
                     answ = 3
-                elif staffPassword.encode() == staffPasswords[staffName][1]:  # Staff is allowed to log in
+                elif staffPassword.encode() == query_passwd[0].encode():  # Player is allowed to log in
                     staffOnline[staffName] = 0
                     print(staffName + " has logged in")
                     answ = 1
@@ -205,23 +246,33 @@ def listenToStaff(sock):
                     sock.send(json.dumps([str(answ)]).encode())  # if not send error code
                 if answ == 2 or answ == 0 or answ == 3 or answ == 4:
                     return
+            
+
             elif int(input[0]) == 2:  # receiving update on this robots location
                 addRoom = input[1]
+
+                #Update status of room to 1 (needs cleaning)
+                sql_query = "UPDATE  room_tb SET status = 1 WHERE id = %s"
+                mycursor.execute(sql_query, (addRoom,))
+                mydb.commit()  
+
                 roomsToClean.append(addRoom)
                 print("Added room " + str(addRoom))
                 sock.send(json.dumps([str(21)]).encode())
                 staffOnline.pop(staffName)
-    except ConnectionResetError:  # when staff closes program, they log out
+
+
+    except ConnectionResetError:  # when player closes program, they log out
         print(staffName + " has closed connection")
         robotsOnline.pop(staffName)  # remove staff from online list
         return
 
-# handles messages coming in from another robot
+
+# handles messages coming in from another player
 def listenToRobot(sock):
     robotId = ""
     sessionAESKey = ""  # symmetric encryption key
     sessionAESIv = ""  # initial value for randomness
-
 
     try:
         # Get public RSA Key from robot
@@ -241,24 +292,45 @@ def listenToRobot(sock):
 
         while True:
             input1 = sock.recv(1024).decode()
-            if not input1:   # sometimes after a connection closes empty messages come through
+            if not input1:  # sometimes after a connection closes empty messages come through
                 break
             input = json.loads(input1)
             if int(input[0]) == 0:  # receiving robotId
                 robotId = input[1]
-                if robotId not in hashPasswords:
+
+                sql_query = "SELECT EXISTS(SELECT * FROM robo_tb WHERE id = %s)" # check if robot exists in db
+                mycursor.execute(sql_query, (robotId,))
+                query_result = mycursor.fetchone()   # either 1 or 0 
+
+                if query_result[0] == 0:  
                     mes = 'RobotId does not exist'
                     sock.send(mes.encode())
                     return
-                mes = hashPasswords[robotId]
-                robotSalt = encryptAES(mes[0], sessionAESKey, sessionAESIv)  # encrypt salt for that robot
+
+                sql_query = "SELECT salt FROM robo_tb WHERE id = %s" # get salt from database
+                mycursor.execute(sql_query, (robotId,))
+                query_result = mycursor.fetchone()
+
+                robotSalt = encryptAES(query_result[0], sessionAESKey, sessionAESIv)  # encrypt salt for that robot
                 sock.send(robotSalt)  # send salt
             elif int(input[0]) == 1:  # receiving login password
                 robotInfo = input[1]
                 robotName = robotInfo[0]
                 encryptedRobotPassword = robotInfo[1]
-                robotPassword = decryptAES(encryptedRobotPassword.encode(), sessionAESKey, sessionAESIv)  # decrypt hashed password
+                robotPassword = decryptAES(encryptedRobotPassword.encode(), sessionAESKey,
+                                           sessionAESIv)  # decrypt hashed password
                 mes = json.dumps([str(3), robotId])
+
+                # check if robot id in database
+                sql_query = "SELECT EXISTS(SELECT * FROM robo_tb WHERE id = %s)"
+                mycursor.execute(sql_query, (robotId,))
+                query_id = mycursor.fetchone()   
+
+                # fetch password from database
+                sql_query = "SELECT hash_pword FROM robo_tb WHERE id = %s" 
+                mycursor.execute(sql_query, (robotId,))
+                query_passwd = mycursor.fetchone()
+
                 if len(servers) != 0:
                     check = loginCheck(servers, 12002, mes)  # check if robot is already online somewhere
                 else:
@@ -269,10 +341,10 @@ def listenToRobot(sock):
                 elif int(check) == 0:  # robot is already online on another server
                     print('Robot is already online on another server')
                     answ = 4
-                elif not robotId in hashPasswords:  # Robot doesn't exist
+                elif query_id[0] == 0:  # Robot doesn't exist
                     print('Robot id does not exist')
                     answ = 3
-                elif robotPassword.encode() == hashPasswords[robotId][1]:  # Robot is allowed to log in
+                elif robotPassword.encode() == query_passwd[0].encode():  # Robot is allowed to log in
                     robotsOnline[robotId] = lastPositions[robotId]
                     print(robotId + ' was last in room ' + str(robotsOnline[robotId]))
                     answ = 1
@@ -285,6 +357,7 @@ def listenToRobot(sock):
                     sock.send(json.dumps([str(answ)]).encode())  # if not send error code
                 if answ == 2 or answ == 0 or answ == 3 or answ == 4:
                     return
+
             elif int(input[0]) == 2:  # receiving update on this robots location
                 robotstat = input[1]
                 print("Receiving update from robot " + str(robotstat[0]))
@@ -299,6 +372,12 @@ def listenToRobot(sock):
                                 newRoom = roomsToClean.pop(0)
                                 answer = json.dumps([11, newRoom])
                                 print("Sending robot to " + str(newRoom))
+
+                                sql_query = "UPDATE  robo_tb SET curr_room = %s WHERE id = %s" 
+                                mycursor.execute(sql_query, (newRoom,robotstat[0],))
+                                query_result = mycursor.fetchone()   # either 1 or 0 
+
+
                                 lastPositions[robotstat[0]] = newRoom
                                 robotsOnline[robotstat[0]] = newRoom
                                 done = True
@@ -352,10 +431,12 @@ def loginCheck(servlist, port, message):
     return result
 
 
+# ALTER
 lastPositions = {'1': 0, '2': 0, '3': 0, '4': 0}  # last known positions of robots
 roomsToClean = [5, 20, 32]
 robotsOnline = {}  # Robots currently online
 staffOnline = {}
+
 # dictionary containing robots for testing, salt + hashed password
 hashPasswords = {'1': (b'$2b$14$y1.Hk0K5ZlOddaVF1oWP6.', b'$2b$14$y1.Hk0K5ZlOddaVF1oWP6.NPRLt8YPfDHeOa2DkmU63E1Wvii5FOy'),
                  '2': (b'$2b$14$ZmesmMUmDrSdaFLWpMf6Fe', b'$2b$14$ZmesmMUmDrSdaFLWpMf6FeWmuF3eB/WBFxC6HUKTvgfdfaGWWBOBe'),
@@ -366,16 +447,17 @@ staffPasswords = {'Gwen': (b'$2b$14$getcgbCfJbfBPe5BgRrcGO', b'$2b$14$getcgbCfJb
                  'Nico': (b'$2b$14$xE0hfDYcUE5B0y2YCIOhue', b'$2b$14$xE0hfDYcUE5B0y2YCIOhueSi1m9Zbv8lvwHMGuePh0xk6zJxPkHBK'),
                  'Amiel': (b'$2b$14$iQeWFL/oIeJw8nxcsMDPO.', b'$2b$14$iQeWFL/oIeJw8nxcsMDPO.JOKaKE9MTx9pz9mmfi9cSyLWXESQRBW'),
                  'Bellard': (b'$2b$14$21KgNRRVsCG8yHwmeerP5u', b'$2b$14$21KgNRRVsCG8yHwmeerP5uraOPoJBU5wQ03UuHsaco6.zaBwARy4O')}
+
 servers = []  # Servers connected to the network
 servNum = raw_input("Enter number of servers you want to link: ")
 if int(servNum) != 0:
-    for x in range(1, int(servNum)+1):
+    for x in range(1, int(servNum) + 1):
         servIp = raw_input("Enter IP address for server number " + str(x) + ": ")
         servers.append(servIp)
 print("Other servers in network: " + str(len(servers)))
 serverSocket = openSock()  # Socket to communicate with robots
 syncSocket = openServerSock()  # Socket to communicate with other servers
-staffSocket  = openStaffSock()
+staffSocket = openStaffSock()
 roomMutex = Lock()
 thread1 = RobotThread(listenNewConnection, serverSocket)  # Thread listening to new robots
 thread1.start()
