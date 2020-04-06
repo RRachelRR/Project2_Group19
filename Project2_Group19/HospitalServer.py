@@ -24,6 +24,7 @@ except:
 	
 mycursor = mydb.cursor()
 
+
 # Thread that handles discovery
 class BroadcastThread(threading.Thread):
     def __init__(self, funcpoint, args):
@@ -106,6 +107,7 @@ def broadcastSock():
     broadcastSocket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     return broadcastSocket
 
+
 def broadcast(broadcastSock):
     while True:
         broadcastSock.sendto(("127.0.0.1, 12000, 12001, 12002").encode('utf-8'), ('<broadcast>', 8888))
@@ -166,6 +168,10 @@ def listenToServer(sock):
                 answe = str(0)
             else:
                 answe = str(1)
+                
+        elif int(input2[0]) == 5:
+            servers.append(input2[1])
+
         sock.send(answe.encode())
 
 
@@ -462,11 +468,38 @@ roomsToClean = [5,2]
 robotsOnline = {}  # Robots currently online
 staffOnline = {} # staff currently online
 servers = []  # Servers connected to the network
-servNum = raw_input("Enter number of servers you want to link: ")
-if int(servNum) != 0:
-    for x in range(1, int(servNum) + 1):
-        servIp = raw_input("Enter IP address for server number " + str(x) + ": ")
-        servers.append(servIp)
+IP = "127.0.0.1"
+
+
+sbroadcastSocket = socket(AF_INET, SOCK_DGRAM)
+sbroadcastSocket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+sbroadcastSocket.settimeout(3)
+sbroadcastSocket.bind(('', 8888))
+print("Listening for other servers")
+while True:
+    try:
+        data = sbroadcastSocket.recv(1024)
+        servers.append(data[0])
+        sock = socket(AF_INET, SOCK_STREAM)
+        sock.connect((data[0], data[3]))
+        sock.send(IP.encode())
+        result = sock.recv(1024).decode()
+        sock.shutdown(SHUT_RDWR)
+        sock.close()
+        break
+    except timeout:
+        print("No active servers")
+        break
+sbroadcastSocket.close()
+
+
+
+
+#servNum = raw_input("Enter number of servers you want to link: ")
+#if int(servNum) != 0:
+    #for x in range(1, int(servNum) + 1):
+     #   servIp = raw_input("Enter IP address for server number " + str(x) + ": ")
+     #   servers.append(servIp)
 print("Other servers in network: " + str(len(servers)))
 serverSocket = openSock()  # Socket to communicate with robots
 syncSocket = openServerSock()  # Socket to communicate with other servers
