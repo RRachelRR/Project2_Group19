@@ -9,7 +9,10 @@ import json
 import time
 
 from pip._vendor.distlib.compat import raw_input
-
+import nacl.utils
+from nacl.public import PrivateKey, Box     # elliptic curve algorithm using Ed25519 curve
+from nacl.encoding import Base64Encoder
+import sys
 
 active = False  # False: User needs to log in, True: User is logged in
 loginSuccessful = True
@@ -63,20 +66,25 @@ except ConnectionRefusedError:
     loginSuccessful = False
 
 if loginSuccessful:
-    # Generate RSA Key
-    keyPairRSA = RSA.generate(2048)  # Key Pair object
-    publicKeyExport = keyPairRSA.publickey().export_key()  # String like it would be in a file (publickey gets object,
-    # export makes it a string)
-    cipherObjectRSA = PKCS1_OAEP.new(keyPairRSA)  # Object to encrypt and decrypt with key
+    # Generate ECC Keys
+    privateKeyECC = PrivateKey.generate()
+    publicKeyExport = privateKeyECC.public_key.encode()
 
     # Send public key to server
-    clientSocket.send(publicKeyExport)
+    clientSocket.send(publicKeyExport)  # Send public key to server
+
+    # Receive server's public key
+    serverPublicKey = clientSocket.recv(256)
+    decodedServerKey = nacl.public.PublicKey(serverPublicKey)
+
+    cipherObjectECC = Box(privateKeyECC, decodedServerKey)  # Object to encrypt and decrypt with key
 
     # Receive AES key and iv from server
-    encryptedKey = clientSocket.recv(256)
-    encryptedIv = clientSocket.recv(256)
-    key = cipherObjectRSA.decrypt(encryptedKey)  # decrypts key
-    iv = cipherObjectRSA.decrypt(encryptedIv)  # decrypts iv
+    encryptedKey = clientSocket.recv(1024)
+    encryptedIv = clientSocket.recv(1024)
+    key = cipherObjectECC.decrypt(encryptedKey)  # decrypts key
+    iv = cipherObjectECC.decrypt(encryptedIv)  # decrypts iv
+
     message = json.dumps([str(0), staffName])
     clientSocket.send(message.encode())
     incom = clientSocket.recv(1024)
@@ -104,10 +112,10 @@ if loginSuccessful:
             else:
                 print('Wrong name or password')
         except ConnectionResetError:
-            print('Humorous Server Connection Error Message that no player thinks is funny')
+            print('Humorous Server Connection Error Message that nobody thinks is funny')
             active = False
         except ConnectionRefusedError:
-            print('Humorous Server Offline Message that no player thinks is funny')
+            print('Humorous Server Offline Message that nobody thinks is funny')
             active = False
 
 

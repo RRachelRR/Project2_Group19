@@ -7,6 +7,8 @@ import bcrypt
 from Crypto.Cipher import AES, PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from pip._vendor.distlib.compat import raw_input
+import nacl.utils
+from nacl.public import PrivateKey, Box
 
 active = False  # False: User needs to log in, True: User is logged in
 loginSuccessful = True
@@ -65,20 +67,25 @@ while(True):
             loginSuccessful = False
 
         if loginSuccessful:
-            # Generate RSA Key
-            keyPairRSA = RSA.generate(2048)  # Key Pair object
-            publicKeyExport = keyPairRSA.publickey().export_key()  # String like it would be in a file (publickey gets object,
-            # export makes it a string)
-            cipherObjectRSA = PKCS1_OAEP.new(keyPairRSA)  # Object to encrypt and decrypt with key
+            # Generate ECC Keys
+            privateKeyECC = PrivateKey.generate()  # Generate private key
+            publicKeyExport = privateKeyECC.public_key.encode()
 
             # Send public key to server
             clientSocket.send(publicKeyExport)
 
+            # Receive server's public key
+            serverPublicKey = clientSocket.recv(256)
+            decodedServerKey = nacl.public.PublicKey(serverPublicKey)
+
+            cipherObjectECC = Box(privateKeyECC, decodedServerKey)  # Object to encrypt and decrypt with key
+
             # Receive AES key and iv from server
-            encryptedKey = clientSocket.recv(256)
-            encryptedIv = clientSocket.recv(256)
-            key = cipherObjectRSA.decrypt(encryptedKey)  # decrypts key
-            iv = cipherObjectRSA.decrypt(encryptedIv)  # decrypts iv
+            encryptedKey = clientSocket.recv(200)
+            encryptedIv = clientSocket.recv(1024)
+            key = cipherObjectECC.decrypt(encryptedKey)  # decrypts key
+            iv = cipherObjectECC.decrypt(encryptedIv)  # decrypts iv
+
             message = json.dumps([str(0), robotId])
             clientSocket.send(message.encode())
             incom = clientSocket.recv(1024)
@@ -106,10 +113,10 @@ while(True):
                     else:
                         print('Wrong id or password')
                 except ConnectionResetError:
-                    print('Humorous Server Connection Error Message that no player thinks is funny')
+                    print('Humorous Server Connection Error Message that nobody thinks is funny')
                     active = False
                 except ConnectionRefusedError:
-                    print('Humorous Server Offline Message that no player thinks is funny')
+                    print('Humorous Server Offline Message that nobody thinks is funny')
                     active = False
             message1 = json.dumps([2, [robotId, currentRoom]])
             try:
