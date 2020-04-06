@@ -24,7 +24,18 @@ except:
 	
 mycursor = mydb.cursor()
 
+# Thread that handles discovery
+class BroadcastThread(threading.Thread):
+    def __init__(self, funcpoint, args):
+        threading.Thread.__init__(self)
+        self.funcpoint = funcpoint
+        self.args = args
 
+    def run(self):
+        print("Starting Broadcast Thread " + self.name)
+        self.funcpoint(self.args)
+
+    
 # Thread that handles robots
 class RobotThread(threading.Thread):
     def __init__(self, funcpoint, args):
@@ -88,6 +99,16 @@ def decryptAES(ciphertext, key, iv):
     message = decryptObject.decrypt(ciphertext)  # decrypt message
     return message.decode()  # return string
 
+#initialise broadcast
+def broadcastSock():
+    broadcastSocket = socket(AF_INET, SOCK_DGRAM)
+    broadcastSocket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+    broadcastSocket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    return broadcastSocket
+
+def broadcast(broadcastSock):
+    while True:
+        broadcastSock.sendto(("127.0.0.1, 12000, 12001, 12002").encode('utf-8'), ('<broadcast>', 8888))
 
 # opens socket to communicate with other servers on socket 12000
 def openSock():
@@ -450,6 +471,7 @@ print("Other servers in network: " + str(len(servers)))
 serverSocket = openSock()  # Socket to communicate with robots
 syncSocket = openServerSock()  # Socket to communicate with other servers
 staffSocket = openStaffSock()
+broadSocket = broadcastSock()
 roomMutex = Lock()
 thread1 = RobotThread(listenNewConnection, serverSocket)  # Thread listening to new robots
 thread1.start()
@@ -457,3 +479,5 @@ thread2 = ServerThread(listenToNewServer, syncSocket)  # Thread listening to oth
 thread2.start()
 thread3 = StaffThread(listenToNewStaff, staffSocket)  # Thread listening to other servers
 thread3.start()
+thread4 = BroadcastThread(broadcast, broadSocket) # thread broadcasting IP
+thread4.start()

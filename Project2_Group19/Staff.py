@@ -46,18 +46,30 @@ def decryptAES(ciphertext):
 
 
 # Socket Stuff
-serverName = '127.0.0.1'
-serverPort = 12001
-serverIn = raw_input("Enter IP address of server you want to log in to (enter 0 for localhost): ")
-if serverIn != str(0):
-    serverName = serverIn
+# Socket Stuff
+broadcastSocket = socket(AF_INET, SOCK_DGRAM)
+broadcastSocket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+broadcastSocket.settimeout(3)
+broadcastSocket.bind(('', 8888))
+print("Listening for server broadcast")
+while True:
+    try:
+        data = broadcastSocket.recv(1024)
+        break
+    except Exception as e:
+        if e ==-1007:
+            pass
+
+broadcastSocket.close()
+data = data.decode('utf-8')
+delim = data.split(", ")
 
 staffName = raw_input("Staff Username: ")
 staffPassword = raw_input("Password: ")
 print("Please wait till you are logged in, this can take a while due to encryption")
 try:
     clientSocket = socket(AF_INET, SOCK_STREAM)
-    clientSocket.connect((serverName, serverPort))
+    clientSocket.connect((delim[0], int(delim[2])))
 except ConnectionRefusedError:
     print('Humorous Server Offline Message that no one thinks is funny')
     loginSuccessful = False
