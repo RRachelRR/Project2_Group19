@@ -9,6 +9,8 @@ import threading
 from threading import Lock
 from threading import Condition
 from pip._vendor.distlib.compat import raw_input
+import nacl.utils
+from nacl.public import PrivateKey, Box
 
 # Thread that handles robots
 class RobotThread(threading.Thread):
@@ -144,18 +146,27 @@ def listenToStaff(sock):
 
 
     try:
-        # Get public RSA Key from staff
-        clientExportedPublicRSAKey = sock.recv(2048)  # Key as in a file/string
-        clientPublicRSAKey = RSA.import_key(clientExportedPublicRSAKey)  # Key as object
-        cipherObjectRSA = PKCS1_OAEP.new(clientPublicRSAKey)  # Object to encrypt and decrypt with key
+        # Generate ECC keys
+        privateKeyECC = PrivateKey.generate()
+        publicKeyExport = privateKeyECC.public_key.encode()
+
+        # Receive staff's public key, send server public key
+        clientExportedPublicECCKey = sock.recv(256)  # Key as in a file/string
+        sock.send(publicKeyExport)
+        clientDecodedPublicECC = nacl.public.PublicKey(clientExportedPublicECCKey)
+
+        cipherObjectECC = Box(privateKeyECC, clientDecodedPublicECC)  # Object to encrypt and decrypt with key
 
         # Generate AES Key and IV
         sessionAESKey = get_random_bytes(16)
         sessionAESIv = get_random_bytes(16)
 
         # Send AES session key and IV to staff
-        cipheredSessionAESKey = cipherObjectRSA.encrypt(sessionAESKey)  # encrypted AES session key
-        cipheredSessionAESIv = cipherObjectRSA.encrypt(sessionAESIv)  # encrypted AES IV
+        nonce = nacl.utils.random(Box.NONCE_SIZE)
+        cipheredSessionAESKey = cipherObjectECC.encrypt(sessionAESKey, nonce)  # encrypted AES session key
+        nonce = nacl.utils.random(Box.NONCE_SIZE)
+        cipheredSessionAESIv = cipherObjectECC.encrypt(sessionAESIv, nonce)  # encrypted AES IV
+
         sock.send(cipheredSessionAESKey)
         sock.send(cipheredSessionAESIv)
 
@@ -225,17 +236,25 @@ def listenToRobot(sock):
 
     try:
         # Get public RSA Key from robot
-        clientExportedPublicRSAKey = sock.recv(2048)  # Key as in a file/string
-        clientPublicRSAKey = RSA.import_key(clientExportedPublicRSAKey)  # Key as object
-        cipherObjectRSA = PKCS1_OAEP.new(clientPublicRSAKey)  # Object to encrypt and decrypt with key
+        privateKeyECC = PrivateKey.generate()
+        publicKeyExport = privateKeyECC.public_key.encode()
+
+        clientExportedPublicECCKey = sock.recv(256)  # Key as in a file/string
+        sock.send(publicKeyExport)
+        clientDecodedPublicECC = nacl.public.PublicKey(clientExportedPublicECCKey)
+
+        cipherObjectECC = Box(privateKeyECC, clientDecodedPublicECC)  # Object to encrypt and decrypt with key
 
         # Generate AES Key and IV
         sessionAESKey = get_random_bytes(16)
         sessionAESIv = get_random_bytes(16)
 
-        # Send AES session key and IV to robot
-        cipheredSessionAESKey = cipherObjectRSA.encrypt(sessionAESKey)  # encrypted AES session key
-        cipheredSessionAESIv = cipherObjectRSA.encrypt(sessionAESIv)  # encrypted AES IV
+        # Send AES session key and IV to staff
+        nonce = nacl.utils.random(Box.NONCE_SIZE)
+        cipheredSessionAESKey = cipherObjectECC.encrypt(sessionAESKey, nonce)  # encrypted AES session key
+        nonce = nacl.utils.random(Box.NONCE_SIZE)
+        cipheredSessionAESIv = cipherObjectECC.encrypt(sessionAESIv, nonce)  # encrypted AES IV
+
         sock.send(cipheredSessionAESKey)
         sock.send(cipheredSessionAESIv)
 
