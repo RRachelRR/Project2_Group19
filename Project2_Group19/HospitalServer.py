@@ -210,9 +210,8 @@ def listenToStaff(sock):
                 sql_query = "SELECT salt FROM staff_tb WHERE name = %s" # get salt from database
                 mycursor.execute(sql_query, (staffName,))
                 query_result = mycursor.fetchone()
+
                 staffSalt = encryptAES(query_result[0], sessionAESKey, sessionAESIv)  # encrypt salt for that robot
-                mes = staffPasswords[staffName]
-                staffSalt = encryptAES(mes[0], sessionAESKey, sessionAESIv)  # encrypt salt for that staff
                 sock.send(staffSalt)  # send salt
 
 
@@ -238,21 +237,17 @@ def listenToStaff(sock):
                 if len(servers) != 0:
                     check = loginCheck(servers, 12002, mes)  # check if staffmember is already online somewhere
                 else:
-                    check = 1  # if there is only one server the staff can't be online on another one
-                if staffName in staffOnline:  # staff is already online on this server
+                    check = 1  # if there is only one server the player can't be online on another one
+                if staffName in staffOnline:  # player is already online on this server
                     print('Staffmember is already online on this server')
                     answ = 2
-                elif int(check) == 0:  # staff is already online on another server
+                elif int(check) == 0:  # player is already online on another server
                     print('Staffmember is already online on another server')
                     answ = 4
                 elif query_name[0] == 0:  # player doesn't exist
                     print('Staffmember does not exist')
                     answ = 3
                 elif staffPassword.encode() == query_passwd[0].encode():  # Player is allowed to log in
-                elif not staffName in staffPasswords:  # staff doesn't exist
-                    print('Staffmember does not exist')
-                    answ = 3
-                elif staffPassword.encode() == staffPasswords[staffName][1]:  # Staff is allowed to log in
                     staffOnline[staffName] = 0
                     print(staffName + " has logged in")
                     answ = 1
