@@ -168,11 +168,12 @@ def listenToServer(sock):
                 answe = str(0)
             else:
                 answe = str(1)
-                
+            sock.send(answe.encode())  
+
         elif int(input2[0]) == 5:
             servers.append(input2[1])
 
-        sock.send(answe.encode())
+        
 
 
 # creates a new thread to handle incoming server messages
@@ -473,17 +474,19 @@ IP = "127.0.0.1"
 
 sbroadcastSocket = socket(AF_INET, SOCK_DGRAM)
 sbroadcastSocket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-sbroadcastSocket.settimeout(3)
+sbroadcastSocket.settimeout(5)
 sbroadcastSocket.bind(('', 8888))
 print("Listening for other servers")
 while True:
     try:
         data = sbroadcastSocket.recv(1024)
-        servers.append(data[0])
+        data = data.decode('utf-8')
+        delim = data.split(", ")
+        servers.append(delim[0])
         sock = socket(AF_INET, SOCK_STREAM)
-        sock.connect((data[0], data[3]))
-        sock.send(IP.encode())
-        result = sock.recv(1024).decode()
+        sock.connect((delim[0], int(delim[3])))
+        msg = json.dumps([str(5), IP])
+        sock.send(msg.encode())
         sock.shutdown(SHUT_RDWR)
         sock.close()
         break
