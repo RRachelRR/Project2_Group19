@@ -12,15 +12,18 @@ from pip._vendor.distlib.compat import raw_input
 import mysql.connector
 
 # Login to database
-mydb = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    passwd="password123",
-    database="testdb"
-)
-
+try:
+	mydb = mysql.connector.connect(
+	    host="localhost",
+	    user="root",
+	    passwd="password123",
+	    database="testdb"
+	)
+except:
+	print("Error logging into database")
+	
 mycursor = mydb.cursor()
-print("Server successfully connected to database")
+
 
 # Thread that handles robots
 class RobotThread(threading.Thread):
@@ -363,6 +366,8 @@ def listenToRobot(sock):
                 print("Receiving update from robot " + str(robotstat[0]))
                 if robotstat[1] == 0:
                     print(str(robotstat[0]) + " is currently not busy")
+                    sql_query = "UPDATE  robo_tb SET curr_room = %s WHERE id = %s" # update robot's location in db
+                    mycursor.execute(sql_query, (robotstat[1],robotstat[0],))
                     done = False
                     while done == False:
                         roomMutex.acquire()
@@ -373,10 +378,8 @@ def listenToRobot(sock):
                                 answer = json.dumps([11, newRoom])
                                 print("Sending robot to " + str(newRoom))
 
-                                sql_query = "UPDATE  robo_tb SET curr_room = %s WHERE id = %s" 
+                                sql_query = "UPDATE  robo_tb SET curr_room = %s WHERE id = %s" 	# update location in db
                                 mycursor.execute(sql_query, (newRoom,robotstat[0],))
-                                query_result = mycursor.fetchone()   # either 1 or 0 
-
 
                                 lastPositions[robotstat[0]] = newRoom
                                 robotsOnline[robotstat[0]] = newRoom
@@ -431,23 +434,12 @@ def loginCheck(servlist, port, message):
     return result
 
 
-# ALTER
+
 lastPositions = {'1': 0, '2': 0, '3': 0, '4': 0}  # last known positions of robots
-roomsToClean = [5, 20, 32]
+roomsToClean = [5,2]
+#roomsToClean.append(query_room[0])
 robotsOnline = {}  # Robots currently online
-staffOnline = {}
-
-# dictionary containing robots for testing, salt + hashed password
-hashPasswords = {'1': (b'$2b$14$y1.Hk0K5ZlOddaVF1oWP6.', b'$2b$14$y1.Hk0K5ZlOddaVF1oWP6.NPRLt8YPfDHeOa2DkmU63E1Wvii5FOy'),
-                 '2': (b'$2b$14$ZmesmMUmDrSdaFLWpMf6Fe', b'$2b$14$ZmesmMUmDrSdaFLWpMf6FeWmuF3eB/WBFxC6HUKTvgfdfaGWWBOBe'),
-                 '3': (b'$2b$14$IVxGsAYb8ycDW1JnTyDTuO', b'$2b$14$IVxGsAYb8ycDW1JnTyDTuOUjyIFwgttZeGafTGV6i1Gj3qo41VXE6'),
-                 '4': (b'$2b$14$/Dq6GdyDWR9CrYzkrbnUW.', b'$2b$14$/Dq6GdyDWR9CrYzkrbnUW.qAFqSuvcubQq/MXn1sJgMhfn8h29OLW')}
-# dictionary containing staff for testing, salt + hashed password
-staffPasswords = {'Gwen': (b'$2b$14$getcgbCfJbfBPe5BgRrcGO', b'$2b$14$getcgbCfJbfBPe5BgRrcGOf/LhvnalJ6GkUa5ZJL8Z3OtZQ1wBCPq'),
-                 'Nico': (b'$2b$14$xE0hfDYcUE5B0y2YCIOhue', b'$2b$14$xE0hfDYcUE5B0y2YCIOhueSi1m9Zbv8lvwHMGuePh0xk6zJxPkHBK'),
-                 'Amiel': (b'$2b$14$iQeWFL/oIeJw8nxcsMDPO.', b'$2b$14$iQeWFL/oIeJw8nxcsMDPO.JOKaKE9MTx9pz9mmfi9cSyLWXESQRBW'),
-                 'Bellard': (b'$2b$14$21KgNRRVsCG8yHwmeerP5u', b'$2b$14$21KgNRRVsCG8yHwmeerP5uraOPoJBU5wQ03UuHsaco6.zaBwARy4O')}
-
+staffOnline = {} # staff currently online
 servers = []  # Servers connected to the network
 servNum = raw_input("Enter number of servers you want to link: ")
 if int(servNum) != 0:
