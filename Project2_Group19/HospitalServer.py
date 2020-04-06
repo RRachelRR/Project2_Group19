@@ -9,8 +9,6 @@ import threading
 from threading import Lock
 from threading import Condition
 from pip._vendor.distlib.compat import raw_input
-import nacl.utils
-from nacl.public import PrivateKey, Box
 import mysql.connector
 
 # Login to database
@@ -25,6 +23,7 @@ except:
 	print("Error logging into database")
 	
 mycursor = mydb.cursor()
+
 
 # Thread that handles robots
 class RobotThread(threading.Thread):
@@ -165,27 +164,18 @@ def listenToStaff(sock):
     sessionAESIv = ""  # initial value for randomness
 
     try:
-        # Generate ECC keys
-        privateKeyECC = PrivateKey.generate()
-        publicKeyExport = privateKeyECC.public_key.encode()
-
-        # Receive staff's public key, send server public key
-        clientExportedPublicECCKey = sock.recv(256)  # Key as in a file/string
-        sock.send(publicKeyExport)
-        clientDecodedPublicECC = nacl.public.PublicKey(clientExportedPublicECCKey)
-
-        cipherObjectECC = Box(privateKeyECC, clientDecodedPublicECC)  # Object to encrypt and decrypt with key
+        # Get public RSA Key from staff
+        clientExportedPublicRSAKey = sock.recv(2048)  # Key as in a file/string
+        clientPublicRSAKey = RSA.import_key(clientExportedPublicRSAKey)  # Key as object
+        cipherObjectRSA = PKCS1_OAEP.new(clientPublicRSAKey)  # Object to encrypt and decrypt with key
 
         # Generate AES Key and IV
         sessionAESKey = get_random_bytes(16)
         sessionAESIv = get_random_bytes(16)
 
         # Send AES session key and IV to staff
-        nonce = nacl.utils.random(Box.NONCE_SIZE)
-        cipheredSessionAESKey = cipherObjectECC.encrypt(sessionAESKey, nonce)  # encrypted AES session key
-        nonce = nacl.utils.random(Box.NONCE_SIZE)
-        cipheredSessionAESIv = cipherObjectECC.encrypt(sessionAESIv, nonce)  # encrypted AES IV
-
+        cipheredSessionAESKey = cipherObjectRSA.encrypt(sessionAESKey)  # encrypted AES session key
+        cipheredSessionAESIv = cipherObjectRSA.encrypt(sessionAESIv)  # encrypted AES IV
         sock.send(cipheredSessionAESKey)
         sock.send(cipheredSessionAESIv)
 
@@ -209,9 +199,8 @@ def listenToStaff(sock):
                 sql_query = "SELECT salt FROM staff_tb WHERE name = %s" # get salt from database
                 mycursor.execute(sql_query, (staffName,))
                 query_result = mycursor.fetchone()
+
                 staffSalt = encryptAES(query_result[0], sessionAESKey, sessionAESIv)  # encrypt salt for that robot
-                mes = staffPasswords[staffName]
-                staffSalt = encryptAES(mes[0], sessionAESKey, sessionAESIv)  # encrypt salt for that staff
                 sock.send(staffSalt)  # send salt
 
 
@@ -248,10 +237,6 @@ def listenToStaff(sock):
                     print('Staffmember does not exist')
                     answ = 3
                 elif staffPassword.encode() == query_passwd[0].encode():  # Player is allowed to log in
-                elif not staffName in staffPasswords:  # staff doesn't exist
-                    print('Staffmember does not exist')
-                    answ = 3
-                elif staffPassword.encode() == staffPasswords[staffName][1]:  # Staff is allowed to log in
                     staffOnline[staffName] = 0
                     print(staffName + " has logged in")
                     answ = 1
@@ -279,13 +264,14 @@ def listenToStaff(sock):
                 sock.send(json.dumps([str(21)]).encode())
                 staffOnline.pop(staffName)
 
-    except ConnectionResetError:  # when staff closes program, they log out
+
+    except ConnectionResetError:  # when player closes program, they log out
         print(staffName + " has closed connection")
         robotsOnline.pop(staffName)  # remove staff from online list
         return
 
 
-# handles messages coming in from another robot
+# handles messages coming in from another player
 def listenToRobot(sock):
     robotId = ""
     sessionAESKey = ""  # symmetric encryption key
@@ -293,25 +279,17 @@ def listenToRobot(sock):
 
     try:
         # Get public RSA Key from robot
-        privateKeyECC = PrivateKey.generate()
-        publicKeyExport = privateKeyECC.public_key.encode()
-
-        clientExportedPublicECCKey = sock.recv(256)  # Key as in a file/string
-        sock.send(publicKeyExport)
-        clientDecodedPublicECC = nacl.public.PublicKey(clientExportedPublicECCKey)
-
-        cipherObjectECC = Box(privateKeyECC, clientDecodedPublicECC)  # Object to encrypt and decrypt with key
+        clientExportedPublicRSAKey = sock.recv(2048)  # Key as in a file/string
+        clientPublicRSAKey = RSA.import_key(clientExportedPublicRSAKey)  # Key as object
+        cipherObjectRSA = PKCS1_OAEP.new(clientPublicRSAKey)  # Object to encrypt and decrypt with key
 
         # Generate AES Key and IV
         sessionAESKey = get_random_bytes(16)
         sessionAESIv = get_random_bytes(16)
 
-        # Send AES session key and IV to staff
-        nonce = nacl.utils.random(Box.NONCE_SIZE)
-        cipheredSessionAESKey = cipherObjectECC.encrypt(sessionAESKey, nonce)  # encrypted AES session key
-        nonce = nacl.utils.random(Box.NONCE_SIZE)
-        cipheredSessionAESIv = cipherObjectECC.encrypt(sessionAESIv, nonce)  # encrypted AES IV
-
+        # Send AES session key and IV to robot
+        cipheredSessionAESKey = cipherObjectRSA.encrypt(sessionAESKey)  # encrypted AES session key
+        cipheredSessionAESIv = cipherObjectRSA.encrypt(sessionAESIv)  # encrypted AES IV
         sock.send(cipheredSessionAESKey)
         sock.send(cipheredSessionAESIv)
 
