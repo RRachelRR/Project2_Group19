@@ -1,17 +1,14 @@
-from random import randrange
-from socket import*
-
-import bcrypt
-from Crypto.PublicKey import RSA
-from Crypto.Cipher import AES,PKCS1_OAEP
 import base64
 import json
 import time
+from socket import *
 
+import bcrypt
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.PublicKey import RSA
 from pip._vendor.distlib.compat import raw_input
 import nacl.utils
 from nacl.public import PrivateKey, Box
-
 
 active = False  # False: User needs to log in, True: User is logged in
 loginSuccessful = True
