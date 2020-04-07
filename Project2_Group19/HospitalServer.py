@@ -26,7 +26,6 @@ except:
 	
 mycursor = mydb.cursor()
 
-<<<<<<< HEAD
 
 # Thread that handles discovery
 class BroadcastThread(threading.Thread):
@@ -40,8 +39,6 @@ class BroadcastThread(threading.Thread):
         self.funcpoint(self.args)
 
     
-=======
->>>>>>> parent of 7b091d2... Revert "Merge branch 'master' into eoin"
 # Thread that handles robots
 class RobotThread(threading.Thread):
     def __init__(self, funcpoint, args):
@@ -241,9 +238,8 @@ def listenToStaff(sock):
                 sql_query = "SELECT salt FROM staff_tb WHERE name = %s" # get salt from database
                 mycursor.execute(sql_query, (staffName,))
                 query_result = mycursor.fetchone()
-                staffSalt = encryptAES(query_result[0], sessionAESKey, sessionAESIv)  # encrypt salt for that robot
-                mes = staffPasswords[staffName]
-                staffSalt = encryptAES(mes[0], sessionAESKey, sessionAESIv)  # encrypt salt for that staff
+
+                staffSalt = encryptAES(query_result[0], sessionAESKey, sessionAESIv)  # encrypt salt for that staff
                 sock.send(staffSalt)  # send salt
 
 
@@ -280,10 +276,6 @@ def listenToStaff(sock):
                     print('Staffmember does not exist')
                     answ = 3
                 elif staffPassword.encode() == query_passwd[0].encode():  # Player is allowed to log in
-                elif not staffName in staffPasswords:  # staff doesn't exist
-                    print('Staffmember does not exist')
-                    answ = 3
-                elif staffPassword.encode() == staffPasswords[staffName][1]:  # Staff is allowed to log in
                     staffOnline[staffName] = 0
                     print(staffName + " has logged in")
                     answ = 1
