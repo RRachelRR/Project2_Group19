@@ -316,10 +316,11 @@ def listenToRobot(sock):
     sessionAESIv = ""  # initial value for randomness
 
     try:
-        # Get public RSA Key from robot
+        # Generate ECC keys
         privateKeyECC = PrivateKey.generate()
         publicKeyExport = privateKeyECC.public_key.encode()
 
+        # Receive staff's public key, send server public key
         clientExportedPublicECCKey = sock.recv(256)  # Key as in a file/string
         sock.send(publicKeyExport)
         clientDecodedPublicECC = nacl.public.PublicKey(clientExportedPublicECCKey)
