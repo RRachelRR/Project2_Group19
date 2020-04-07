@@ -426,6 +426,7 @@ def listenToRobot(sock):
 
                                 sql_query = "UPDATE  robo_tb SET curr_room = %s WHERE id = %s" 	# update location in db
                                 mycursor.execute(sql_query, (newRoom,robotstat[0],))
+                                mydb.commit() 
 
                                 lastPositions[robotstat[0]] = newRoom
                                 robotsOnline[robotstat[0]] = newRoom
