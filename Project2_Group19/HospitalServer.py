@@ -26,6 +26,16 @@ except:
 	
 mycursor = mydb.cursor()
 
+# Thread that handles discovery
+class CleanUpThread(threading.Thread):
+    def __init__(self, funcpoint):
+        threading.Thread.__init__(self)
+        self.funcpoint = funcpoint
+
+    def run(self):
+        print("Starting Cleanup Thread " + self.name)
+        self.funcpoint()
+
 
 # Thread that handles discovery
 class BroadcastThread(threading.Thread):
@@ -143,6 +153,13 @@ def openServerSock():
     print('Ready to talk to other servers')
     return serversocket1
 
+def cleanUp():
+    while True:
+        for x in inactive:
+            x.join()
+        print('Cleaned out inactive threads')
+        time.sleep(30)
+
 
 # creates a new thread to handle incoming server messages
 def listenToNewServer(sock):
@@ -233,6 +250,7 @@ def listenToStaff(sock):
                 if query_result[0] == 0:    
                     mes = 'Username does not exist'
                     sock.send(mes.encode())
+                    inactive.append(threading.current_thread())
                     return
              
                 sql_query = "SELECT salt FROM staff_tb WHERE name = %s" # get salt from database
@@ -287,6 +305,7 @@ def listenToStaff(sock):
                 else:
                     sock.send(json.dumps([str(answ)]).encode())  # if not send error code
                 if answ == 2 or answ == 0 or answ == 3 or answ == 4:
+                    inactive.append(threading.current_thread())
                     return
             
 
@@ -302,10 +321,12 @@ def listenToStaff(sock):
                 print("Added room " + str(addRoom))
                 sock.send(json.dumps([str(21)]).encode())
                 staffOnline.pop(staffName)
+                inactive.append(threading.current_thread())
 
     except ConnectionResetError:  # when staff closes program, they log out
         print(staffName + " has closed connection")
-        robotsOnline.pop(staffName)  # remove staff from online list
+        staffOnline.pop(staffName)  # remove staff from online list
+        inactive.append(threading.current_thread())
         return
 
 
@@ -354,6 +375,7 @@ def listenToRobot(sock):
                 if query_result[0] == 0:  
                     mes = 'RobotId does not exist'
                     sock.send(mes.encode())
+                    inactive.append(threading.current_thread())
                     return
 
                 sql_query = "SELECT salt FROM robo_tb WHERE id = %s" # get salt from database
@@ -405,6 +427,7 @@ def listenToRobot(sock):
                 else:
                     sock.send(json.dumps([str(answ)]).encode())  # if not send error code
                 if answ == 2 or answ == 0 or answ == 3 or answ == 4:
+                    inactive.append(threading.current_thread())
                     return
 
             elif int(input[0]) == 2:  # receiving update on this robots location
@@ -444,10 +467,12 @@ def listenToRobot(sock):
                     robotsOnline[robotstat[0]] = robotstat[1]
                 sock.send(answer.encode())
                 robotsOnline.pop(robotstat[0])
+                inactive.append(threading.current_thread())
                 print(str(len(robotsOnline)) + " Robots are left")
     except ConnectionResetError:  # when robot closes program, they log out
         print(robotId + " has closed connection")
         robotsOnline.pop(robotId)  # remove robot from online list
+        inactive.append(threading.current_thread())
         return
 
 
@@ -514,19 +539,13 @@ while True:
 sbroadcastSocket.close()
 
 
-
-
-#servNum = raw_input("Enter number of servers you want to link: ")
-#if int(servNum) != 0:
-    #for x in range(1, int(servNum) + 1):
-     #   servIp = raw_input("Enter IP address for server number " + str(x) + ": ")
-     #   servers.append(servIp)
 print("Other servers in network: " + str(len(servers)))
 serverSocket = openSock()  # Socket to communicate with robots
 syncSocket = openServerSock()  # Socket to communicate with other servers
 staffSocket = openStaffSock()
 broadSocket = broadcastSock()
 roomMutex = Lock()
+inactive = []
 thread1 = RobotThread(listenNewConnection, serverSocket)  # Thread listening to new robots
 thread1.start()
 thread2 = ServerThread(listenToNewServer, syncSocket)  # Thread listening to other servers
@@ -535,3 +554,5 @@ thread3 = StaffThread(listenToNewStaff, staffSocket)  # Thread listening to othe
 thread3.start()
 thread4 = BroadcastThread(broadcast, broadSocket) # thread broadcasting IP
 thread4.start()
+thread5 = CleanUpThread(cleanUp)
+thread5.start()
