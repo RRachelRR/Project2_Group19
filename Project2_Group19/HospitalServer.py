@@ -337,10 +337,11 @@ def listenToRobot(sock):
     sessionAESIv = ""  # initial value for randomness
 
     try:
-        # Get public RSA Key from robot
+        # Generate ECC keys
         privateKeyECC = PrivateKey.generate()
         publicKeyExport = privateKeyECC.public_key.encode()
 
+        # Receive staff's public key, send server public key
         clientExportedPublicECCKey = sock.recv(256)  # Key as in a file/string
         sock.send(publicKeyExport)
         clientDecodedPublicECC = nacl.public.PublicKey(clientExportedPublicECCKey)
@@ -449,6 +450,7 @@ def listenToRobot(sock):
 
                                 sql_query = "UPDATE  robo_tb SET curr_room = %s WHERE id = %s" 	# update location in db
                                 mycursor.execute(sql_query, (newRoom,robotstat[0],))
+                                mydb.commit() 
 
                                 lastPositions[robotstat[0]] = newRoom
                                 robotsOnline[robotstat[0]] = newRoom
