@@ -1,6 +1,12 @@
 # Project 2 Group 19
 > Network of cleaning robots to combat Coronavirus
 
+## Contents
+- Requirements
+- Libraries
+- SQL Database Setup
+- Test Cases
+
 ## Requirements
 
 Python Compiler Version 3.7 which can be installed [here](https://www.python.org/downloads/)
@@ -17,36 +23,31 @@ Note: Library incompatibilities with Python 3.8
 - base64
 - random
 
-### bcrypt
-[Link](https://pypi.org/project/bcrypt/)
+### [bcrypt](https://pypi.org/project/bcrypt/)
 
 ```shell
 $ pip install bcrypt
 ```
 
-### cryptodome
-[Link](https://pycryptodome.readthedocs.io/en/latest/src/installation.html)
+### [cryptodome](https://pycryptodome.readthedocs.io/en/latest/src/installation.html)
  
 ```shell
 $ pip install pycryptodome
 ```
 
-### distlib
-[Link](https://pypi.org/project/distlib/)
+### [distlib](https://pypi.org/project/distlib/)
 
 ```shell
 $ pip install distlib
 ```
 
-### nacl.utils
-[Link](https://pypi.org/project/PyNaCl/)
+### [nacl.utils](https://pypi.org/project/PyNaCl/)
 
 ```shell
 $ pip install PyNaCl
 ```
 
-### mysql.connector
-[Link](https://pypi.org/project/mysql-connector-python/)
+### [mysql.connector](https://pypi.org/project/mysql-connector-python/)
 
 ```shell
 $ pip install mysql-connector-python
