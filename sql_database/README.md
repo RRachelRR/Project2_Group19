@@ -68,17 +68,5 @@ For other IDEs, run the following on the command line:
 $ pip install mysql-connector-python
 ```
 
-In your python script, run the following code to connect to your SQL server:
-
-```shell
-import mysql.connector
-
-mydb = mysql.connector.connect(
-    host = "localhost",
-    user = "root",
-    passwd = "password123",
-    database = "robo_db"
-)
-```
 
 
