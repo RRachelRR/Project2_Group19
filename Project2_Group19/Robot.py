@@ -59,6 +59,7 @@ while True:
             pass
         
 broadcastSocket.close()
+#determine Ip and port bsaed on device type
 data = data.decode('utf-8')
 delim = data.split(", ")
 

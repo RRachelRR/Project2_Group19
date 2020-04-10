@@ -119,7 +119,7 @@ def broadcastSock():
     broadcastSocket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     return broadcastSocket
 
-
+# broadcast IP and available ports
 def broadcast(broadcastSock):
     while True:
         broadcastSock.sendto(("127.0.0.1, 12000, 12001, 12002").encode('utf-8'), ('<broadcast>', 8888))
@@ -516,7 +516,7 @@ staffOnline = {} # staff currently online
 servers = []  # Servers connected to the network
 IP = "127.0.0.1"
 
-
+#initialise socket for listening broadcast
 sbroadcastSocket = socket(AF_INET, SOCK_DGRAM)
 sbroadcastSocket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 sbroadcastSocket.settimeout(5)
@@ -524,13 +524,13 @@ sbroadcastSocket.bind(('', 8888))
 print("Listening for other servers")
 while True:
     try:
-        data = sbroadcastSocket.recv(1024)
+        data = sbroadcastSocket.recv(1024) #read in broadcast
         data = data.decode('utf-8')
         delim = data.split(", ")
-        servers.append(delim[0])
+        servers.append(delim[0]) #add other server IP to list of servers
         sock = socket(AF_INET, SOCK_STREAM)
-        sock.connect((delim[0], int(delim[3])))
-        msg = json.dumps([str(5), IP])
+        sock.connect((delim[0], int(delim[3]))) #connect to other server
+        msg = json.dumps([str(5), IP]) #send this servers IP
         sock.send(msg.encode())
         sock.shutdown(SHUT_RDWR)
         sock.close()
@@ -538,6 +538,7 @@ while True:
     except timeout:
         print("No active servers")
         break
+#close socket
 sbroadcastSocket.close()
 
 

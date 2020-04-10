@@ -49,7 +49,6 @@ def decryptAES(ciphertext):
 
 
 # Socket Stuff
-# Socket Stuff
 broadcastSocket = socket(AF_INET, SOCK_DGRAM)
 broadcastSocket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
 broadcastSocket.settimeout(3)
@@ -62,7 +61,7 @@ while True:
     except Exception as e:
         if e ==-1007:
             pass
-
+#determine Ip and port bsaed on device type
 broadcastSocket.close()
 data = data.decode('utf-8')
 delim = data.split(", ")
