@@ -24,30 +24,35 @@ Note: Library incompatibilities with Python 3.8
 - random
 
 ### [bcrypt](https://pypi.org/project/bcrypt/)
+> Used for password hashing
 
 ```shell
 $ pip install bcrypt
 ```
 
 ### [cryptodome](https://pycryptodome.readthedocs.io/en/latest/src/installation.html)
+> Used for low-level cryptography
  
 ```shell
 $ pip install pycryptodome
 ```
 
 ### [distlib](https://pypi.org/project/distlib/)
+> Implements low-level packaging
 
 ```shell
 $ pip install distlib
 ```
 
 ### [nacl.utils](https://pypi.org/project/PyNaCl/)
+> Provides networking and cryptography capabilities
 
 ```shell
 $ pip install PyNaCl
 ```
 
 ### [mysql.connector](https://pypi.org/project/mysql-connector-python/)
+> Used for database connections and queries
 
 ```shell
 $ pip install mysql-connector-python
